@@ -9,6 +9,7 @@ BUILDPACK_NAME=imagemagick
 BINARY_NAME=imagemagick-${STACK}.tar.gz
 BIN_DIR=$(cd "$(dirname "$0")"; pwd) # absolute path
 ROOT_DIR=$(dirname "$BIN_DIR")
+LP_DIR=`cd $(dirname $0); cd ..; pwd`
 
 function indent() {
   c='s/^/       /'
@@ -58,23 +59,23 @@ vendor "${ROOT_DIR}/build/${BINARY_NAME}" "$BUILD_DIR/vendor/imagemagick"
 
 echo "Configuring build environment" | arrow
 
-cat <<EOF > export
-export PATH="/app/bin:/app/vendor/imagemagick/bin:$PATH:\$PATH"
-export LD_LIBRARY_PATH="\$LD_LIBRARY_PATH:$LD_LIBRARY_PATH"
-export LIBRARY_PATH="\$LIBRARY_PATH:$LIBRARY_PATH"
-export PKG_CONFIG_PATH="\$PKG_CONFIG_PATH:$PKG_CONFIG_PATH"
-export CPPPATH="\$CPPPATH:$CPPPATH"
-export CPATH="\$CPATH:$CPATH"
-EOF
+# give environment to later buildpacks
+export | grep -E -e ' (PATH|LD_LIBRARY_PATH|LIBRARY_PATH|PKG_CONFIG_PATH|CPPPATH|CPATH|MAGICK_CONFIGURE_PATH)='  > "$LP_DIR/export"
 
 echo "Building runtime environment" | arrow
 mkdir -p $BUILD_DIR/.profile.d
 
 cat <<EOF > $BUILD_DIR/.profile.d/$BUILDPACK_NAME.sh
 export PATH="/app/bin:/app/vendor/imagemagick/bin:\$PATH"
-export LD_LIBRARY_PATH="\$LD_LIBRARY_PATH:${LD_LIBRARY_PATH//$BUILD_DIR//app}"
-export LIBRARY_PATH="\$LIBRARY_PATH:${LIBRARY_PATH//$BUILD_DIR//app}"
-export PKG_CONFIG_PATH="\$PKG_CONFIG_PATH:${PKG_CONFIG_PATH//$BUILD_DIR//app}"
-export CPPPATH="\$CPPPATH:${CPPPATH//$BUILD_DIR//app}"
-export CPATH="\$CPATH:${CPATH//$BUILD_DIR//app}"
+export LD_LIBRARY_PATH="${LD_LIBRARY_PATH//$BUILD_DIR//app}:\$LD_LIBRARY_PATH"
+export LIBRARY_PATH="${LIBRARY_PATH//$BUILD_DIR//app}:\$LIBRARY_PATH"
+export PKG_CONFIG_PATH="${PKG_CONFIG_PATH//$BUILD_DIR//app}:\$PKG_CONFIG_PATH"
+export CPPPATH="${CPPPATH//$BUILD_DIR//app}:\$CPPPATH"
+export CPATH="${CPATH//$BUILD_DIR//app}:\$CPATH"
+export MAGICK_CONFIGURE_PATH=/etc/ImageMagick-6
+
+find /app/vendor/imagemagick -type f -ipath '*/pkgconfig/*.pc' | xargs --no-run-if-empty -n 1 sed -i -e 's!^prefix=\(.*\)\$!prefix=/app/vendor/imagemagick!g'
 EOF
+
+echo "Rewrite package-config files" | arrow
+find $BUILD_DIR/vendor/imagemagick -type f -ipath '*/pkgconfig/*.pc' | xargs --no-run-if-empty -n 1 sed -i -e 's!^prefix=\(.*\)$!prefix='"$BUILD_DIR"'/vendor/imagemagick!g'
