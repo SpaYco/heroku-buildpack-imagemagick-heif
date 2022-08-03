@@ -51,9 +51,12 @@ git clone https://github.com/strukturag/libheif.git $WORK_DIR/libheif
 cd $WORK_DIR/libheif
 ./autogen.sh && ./configure && make && make install
 
-# get, configure and install newest imagemagick
-echo "⚙️ Installing latest imagemagick..."
-git clone https://github.com/ImageMagick/ImageMagick.git $WORK_DIR/imagemagick
+# get, configure and install imagemagick
+echo "⚙️ Installing imagemagick..."
+wget https://imagemagick.org/archive/ImageMagick-6.9.12-60.tar.gz -P $WORK_DIR
+cd $WORK_DIR
+mkdir imagemagick
+tar xvfz ImageMagick-6.9.12-60.tar.gz -C $WORK_DIR/imagemagick --strip-components=1
 cd $WORK_DIR/imagemagick
 ./configure --with-heic=yes --prefix=$WORK_DIR/imagemagick --without-gvc
 make && make install
